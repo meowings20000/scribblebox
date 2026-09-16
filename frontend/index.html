@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scribblebox — type it and it exists</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip-link" href="#notebookInput">Skip to the notebook</a>
+
+<header class="masthead">
+  <h1>Scribblebox</h1>
+  <p class="tagline">Write an object's name in the notebook and it appears in the world. Then get to the goal.</p>
+</header>
+
+<section id="errorPanel" class="error-panel" role="alert" hidden>
+  <h2>Something went wrong</h2>
+  <p id="errorMessage">The last request failed.</p>
+  <p class="error-help">If this keeps happening, make sure the Go API is running (docker compose up).</p>
+  <button id="errorRetry" type="button" aria-label="Retry the last request">Retry</button>
+</section>
+
+<main class="layout">
+
+  <section class="panel world-panel" aria-labelledby="worldHeading">
+    <h2 id="worldHeading">The world</h2>
+    <p id="worldStatus" class="status" role="status" aria-live="polite">
+      <span id="worldName">No world open yet</span>
+      <span id="aiWorldBadge" class="chip ai-badge" hidden>AI</span>
+      <span id="tickCount" class="chip">tick 0</span>
+      <span id="playerStatus" class="chip">you are at x 0, y 0</span>
+      <span id="objectStatus" class="chip">0 objects</span>
+    </p>
+
+    <div class="world-wrap">
+      <svg id="worldSvg" class="world-svg" viewBox="0 0 28 16" preserveAspectRatio="xMidYMid meet" role="img"
+           tabindex="0" aria-label="No world open yet — pick a puzzle and the drawing appears here">
+        <g id="terrainLayer"></g>
+        <g id="entityLayer"></g>
+        <g id="playerLayer"></g>
+        <rect id="placementMarker" class="placement-marker" x="0" y="0" width="1" height="1" fill="none"
+              stroke="#1f7a3d" stroke-width="0.08" stroke-dasharray="0.14 0.12" hidden></rect>
+      </svg>
+    </div>
+
+    <p id="placementHint" class="hint" role="status" aria-live="polite">Pick a puzzle to open a world.</p>
+
+    <div class="controls" role="group" aria-label="Player controls">
+      <button id="btnLeft" type="button" aria-label="Move left" disabled>◀ Left</button>
+      <button id="btnRight" type="button" aria-label="Move right" disabled>Right ▶</button>
+      <button id="btnJump" type="button" aria-label="Jump" disabled>▲ Jump</button>
+      <button id="btnTake" type="button" aria-label="Take the object you are standing next to" disabled>✋ Take</button>
+      <button id="btnDrop" type="button" aria-label="Drop what you are holding" disabled>⤓ Drop</button>
+    </div>
+
+    <div class="controls time-controls" role="group" aria-label="Time controls">
+      <button id="btnStep" type="button" aria-label="Advance time by four ticks" disabled>⏩ Advance time (4 ticks)</button>
+      <button id="btnReset" type="button" aria-label="Reset this puzzle" disabled>↺ Reset puzzle</button>
+    </div>
+
+    <p class="hint" id="keyboardHint">Keyboard: ← → to move, Space to jump, T to take, D to drop, Enter in the notebook to write.</p>
+
+    <div id="hintPanel" class="hint-panel">
+      <h3 id="hintHeading">Stuck? Get four choices</h3>
+      <button id="hintButton" type="button" aria-label="Give me four choices">Give me four choices</button>
+      <p id="hintRationale" class="hint" role="status" aria-live="polite">No four choices yet — press the button when you want some.</p>
+      <div id="hintOptions" class="hint-options" role="group" aria-label="Four choices"></div>
+      <p id="hintFeedback" class="hint-feedback" role="status" aria-live="polite" hidden></p>
+      <p id="hintError" class="ai-error" role="alert" hidden></p>
+    </div>
+
+    <div id="aiJudgePanel" class="ai-judge">
+      <h3 id="aiJudgeHeading">Ask the AI judge (optional)</h3>
+      <label class="sr-only" for="aiJudgeQuestion">Describe the idea you want judged</label>
+      <textarea id="aiJudgeQuestion" rows="2" placeholder="would a burning rope cut the branch the star sits on?"></textarea>
+      <div class="controls">
+        <button id="aiJudgeButton" type="button" aria-label="Ask the AI judge whether this idea would work" disabled>Ask the judge</button>
+      </div>
+      <div id="aiVerdict" class="ai-verdict" role="status" aria-live="polite">AI features are off — the game is fully playable without them.</div>
+      <p id="aiJudgeError" class="ai-error" role="alert" hidden></p>
+    </div>
+  </section>
+
+  <div class="side">
+
+    <section id="aiSettings" class="panel ai-panel" aria-labelledby="aiHeading">
+      <h2 id="aiHeading">AI features (optional)</h2>
+      <p class="hint">Scribblebox is fully playable without any AI. If you want the judge and the puzzle inventor, bring your own endpoint and key — they stay in this browser.</p>
+      <label class="toggle-row" for="aiToggle">
+        <input id="aiToggle" type="checkbox">
+        <span>Use AI features</span>
+      </label>
+      <p id="aiStatus" class="ai-status" role="status" aria-live="polite">AI features are off — the game is fully playable without them.</p>
+      <form id="aiSettingsForm" autocomplete="off">
+        <label for="aiBaseUrl">Base URL</label>
+        <input id="aiBaseUrl" type="text" placeholder="https://api.openai.com/v1" spellcheck="false" autocapitalize="off">
+        <label for="aiApiKey">API key</label>
+        <div class="key-row">
+          <input id="aiApiKey" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" aria-describedby="aiSettingsNote">
+          <button id="aiKeyReveal" type="button" aria-pressed="false" aria-controls="aiApiKey" aria-label="Reveal the API key in the field">Show key</button>
+        </div>
+        <label for="aiModel">Model</label>
+        <input id="aiModel" type="text" placeholder="gpt-4o-mini" spellcheck="false" autocapitalize="off">
+        <div class="key-row">
+          <button id="aiSaveButton" type="submit" aria-label="Save the AI settings in this browser">Save AI settings</button>
+          <button id="aiForgetButton" type="button" aria-label="Forget the stored AI settings">Forget settings</button>
+        </div>
+      </form>
+      <p id="aiSettingsNote" class="hint">The key is kept in this browser only (localStorage key scribblebox.ai). It is sent to your own local game server solely to make the request you asked for, and it is never stored or logged on the server. Nothing is sent anywhere until you press Save and then ask for something.</p>
+      <button id="aiHintButton" type="button" aria-label="Ask the AI for four clever choices" aria-describedby="aiHintNote" disabled>Ask the AI for four clever choices</button>
+      <p id="aiHintNote" class="hint">AI is off, so this stays disabled. The four choices it would ask for are drawn by your own model.</p>
+    </section>
+
+    <section class="panel notebook-panel" aria-labelledby="notebookHeading">
+      <h2 id="notebookHeading">The notebook</h2>
+      <form id="notebookForm" autocomplete="off">
+        <label class="sr-only" for="notebookInput">Name of the object to write</label>
+        <div class="notebook-row">
+          <input id="notebookInput" name="phrase" type="text" placeholder="ladder, bucket of water, flaming sword…"
+                 role="combobox" aria-expanded="false" aria-autocomplete="list"
+                 aria-controls="notebookSuggestions" aria-describedby="notebookHelp">
+          <button id="spawnButton" type="submit" aria-label="Write the typed object into the world" disabled>Write it</button>
+        </div>
+      </form>
+      <ul id="notebookSuggestions" class="suggestions" role="listbox" aria-label="Word suggestions" hidden></ul>
+      <p id="spawnNote" class="spawn-note" role="status" aria-live="polite">Nothing written yet.</p>
+      <p id="notebookHelp" class="hint">Enter writes the object wherever the marker is. Arrow keys pick a suggestion, Escape closes the list.</p>
+      <div class="placement-row">
+        <button id="btnDropFromSky" type="button" aria-label="Drop the next object from the sky above you">⤒ Drop from the sky</button>
+      </div>
+      <h3 id="historyHeading">Written so far</h3>
+      <ol id="notebookHistory" class="history"></ol>
+    </section>
+
+    <section class="panel goal-panel" aria-labelledby="goalHeading">
+      <h2 id="goalHeading">Goal</h2>
+      <div id="goalBanner" class="goal-banner">
+        <h3 id="goalTitle">Pick a puzzle to begin</h3>
+        <p id="goalProgress">No world open yet.</p>
+        <div id="solvedBanner" class="solved-banner" role="status" aria-live="assertive" hidden>
+          <strong>Solved!</strong> <span id="solvedGoal"></span>
+          <span class="solved-extra">The world stays open — keep writing objects and poking at it.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel log-panel" aria-labelledby="logHeading">
+      <h2 id="logHeading">What just happened</h2>
+      <ol id="eventLog" class="event-log" role="log" aria-live="polite" aria-relevant="additions"></ol>
+      <p id="eventCount" class="hint">nothing yet</p>
+    </section>
+
+    <section class="panel entity-panel" aria-labelledby="entityHeading">
+      <h2 id="entityHeading">Objects in the world <span id="entityCount" class="count">0 objects</span></h2>
+      <ul id="entityList" class="entity-list"></ul>
+    </section>
+
+    <section class="panel puzzle-panel" aria-labelledby="puzzleHeading">
+      <h2 id="puzzleHeading">Puzzles</h2>
+      <p id="puzzlesStatus" class="status" role="status" aria-live="polite">Looking for puzzles…</p>
+      <ul id="puzzleList" class="puzzle-list"></ul>
+      <div class="brief">
+        <h3 id="briefHeading">The brief</h3>
+        <p id="puzzleBrief">Pick a puzzle and its brief appears here.</p>
+        <button id="puzzleHintButton" type="button" aria-expanded="false" aria-controls="puzzleHint">Show hint</button>
+        <p id="puzzleHint" class="hint" hidden></p>
+        <button id="newPuzzleButton" type="button" aria-label="Choose another puzzle">Choose another puzzle</button>
+      </div>
+      <p id="dictionaryNote" class="hint">The dictionary has not answered yet.</p>
+
+      <div id="aiPuzzlePanel" class="ai-puzzle">
+        <h3 id="aiPuzzleHeading">Invent a puzzle with AI (optional)</h3>
+        <label for="aiPuzzleTheme">Theme</label>
+        <input id="aiPuzzleTheme" type="text" placeholder="a lighthouse in a storm" spellcheck="false">
+        <label for="aiPuzzleGoalKind">Goal kind</label>
+        <select id="aiPuzzleGoalKind">
+          <option value="star">star</option>
+          <option value="cross">cross</option>
+          <option value="candles">candles</option>
+          <option value="chest">chest</option>
+        </select>
+        <button id="aiPuzzleButton" type="button" aria-label="Invent a puzzle with AI" disabled>Invent a puzzle</button>
+        <p id="aiPuzzleStatus" class="hint" role="status" aria-live="polite">AI is off, so nothing is invented. Turn AI on above to use this.</p>
+        <p id="aiPuzzleError" class="ai-error" role="alert" hidden></p>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer class="foot">
+  <p>Scribblebox runs entirely on this page's own inline SVG — no images, no fonts, no libraries.</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

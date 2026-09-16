@@ -1,0 +1,16 @@
+# Binaries
+*.exe
+backend/backend.exe
+
+# Frontend test artifacts
+node_modules/
+test-results/
+playwright-report/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
