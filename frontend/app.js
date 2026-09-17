@@ -38,7 +38,8 @@
   const AI_ROUTES = {
     judge: "/api/ai/judge",
     puzzles: "/api/ai/puzzles",
-    hint: "/api/ai/hint"
+    hint: "/api/ai/hint",
+    ping: "/api/ai/ping"
   };
 
   const AI_OFF_STATUS = "AI features are off — the game is fully playable without them.";
@@ -826,6 +827,9 @@
     $("aiStatus").textContent = !ai.enabled
       ? AI_OFF_STATUS
       : (aiConfigured() ? "Ready: " + ai.model + " at " + ai.baseUrl : AI_NOT_CONFIGURED);
+    // Testing a connection needs settings, but not the toggle: a player may want to
+    // check an endpoint before switching the features on.
+    $("aiTestButton").disabled = !aiConfigured();
     renderJudge();
     renderHintAi();
     renderPuzzleAi();
@@ -866,6 +870,40 @@
     $("aiKeyReveal").setAttribute("aria-pressed", shown ? "false" : "true");
     $("aiKeyReveal").textContent = shown ? "Show key" : "Hide key";
     field.focus();
+  }
+
+  /* Proves the settings before the player relies on them: one tiny call to the
+     player's own endpoint, reported honestly either way. The key goes only to the
+     local game service, which forwards it for this one request and never keeps it. */
+  function testAiConnection() {
+    const baseUrl = $("aiBaseUrl").value.trim();
+    const apiKey = $("aiApiKey").value.trim();
+    const model = $("aiModel").value.trim();
+    const out = $("aiTestResult");
+    if (!baseUrl || !apiKey || !model) {
+      out.className = "hint is-try-again";
+      out.textContent = AI_NOT_CONFIGURED;
+      return;
+    }
+    enqueue(async () => {
+      out.className = "hint";
+      out.textContent = "Testing " + baseUrl + "…";
+      $("aiTestButton").disabled = true;
+      const result = await request(AI_ROUTES.ping, {
+        method: "POST",
+        body: { baseUrl: baseUrl, apiKey: apiKey, model: model }
+      });
+      $("aiTestButton").disabled = false;
+      if (!result.ok) {
+        out.className = "hint is-try-again";
+        out.textContent = "That did not work: " + result.error;
+        return;
+      }
+      const data = result.data || {};
+      out.className = "hint is-worked";
+      out.textContent = "Working: " + (data.model || model) + " answered \"" + (data.reply || "…") +
+        "\" in " + String(data.latencyMs == null ? "?" : data.latencyMs) + " ms.";
+    }, testAiConnection);
   }
 
   function forgetAi() {
@@ -2069,6 +2107,7 @@
     $("aiKeyReveal").addEventListener("click", toggleKeyReveal);
     $("aiForgetButton").addEventListener("click", forgetAi);
     $("aiJudgeButton").addEventListener("click", askJudge);
+    $("aiTestButton").addEventListener("click", testAiConnection);
     $("aiPuzzleButton").addEventListener("click", generateAiPuzzle);
     $("hintButton").addEventListener("click", askForHint);
     $("aiHintButton").addEventListener("click", askAiHint);

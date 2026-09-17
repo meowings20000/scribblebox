@@ -10,6 +10,11 @@ external assets, no model, no API key required. The AI features (a judge and a p
 
 ![The star in the tree](docs/shots/s4-solved.png)
 
+**A recorded session:** [`docs/scribblebox-gameplay.mp4`](docs/scribblebox-gameplay.mp4) — 3 minutes 43
+seconds of real play against the live stack (the notebook, adjectives, an improvised word, fire and
+ice, the four-choice hint, all four puzzles, and the AI settings panel). A scene-by-scene plan for
+performing it live is in [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md).
+
 ---
 
 ## Quick start

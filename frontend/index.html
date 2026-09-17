@@ -106,7 +106,11 @@
           <button id="aiSaveButton" type="submit" aria-label="Save the AI settings in this browser">Save AI settings</button>
           <button id="aiForgetButton" type="button" aria-label="Forget the stored AI settings">Forget settings</button>
         </div>
+        <div class="key-row">
+          <button id="aiTestButton" type="button" aria-label="Test the AI endpoint with these settings" aria-describedby="aiTestResult">Test connection</button>
+        </div>
       </form>
+      <p id="aiTestResult" class="hint" role="status" aria-live="polite">Not tested yet. Press Test connection to prove the endpoint, key and model work before you rely on them.</p>
       <p id="aiSettingsNote" class="hint">The key is kept in this browser only (localStorage key scribblebox.ai). It is sent to your own local game server solely to make the request you asked for, and it is never stored or logged on the server. Nothing is sent anywhere until you press Save and then ask for something.</p>
       <button id="aiHintButton" type="button" aria-label="Ask the AI for four clever choices" aria-describedby="aiHintNote" disabled>Ask the AI for four clever choices</button>
       <p id="aiHintNote" class="hint">AI is off, so this stays disabled. The four choices it would ask for are drawn by your own model.</p>

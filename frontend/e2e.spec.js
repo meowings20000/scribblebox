@@ -573,6 +573,48 @@ test('mocked: a choice that no longer fits refreshes the four choices instead of
   expect(errors).toEqual([]);
 });
 
+test('mocked: Test connection proves the settings, or reports why they do not work', async ({ page }) => {
+  const errors = watchForCrashes(page);
+  const session = await mockApi(page, {
+    'POST /api/ai/ping': (route) => json(route, 200, { ok: true, usedAi: true, model: 'gpt-4o-mini', reply: 'ready', latencyMs: 412 })
+  });
+  await openMockedPuzzle(page);
+
+  // Nothing typed yet: the button says so instead of firing a request.
+  await expect(page.locator('#aiTestButton')).toBeDisabled();
+  await expect(page.locator('#aiTestResult')).toContainText('Not tested yet');
+
+  await page.locator('#aiToggle').check();
+  await page.locator('#aiBaseUrl').fill('http://localhost:9999/v1');
+  await page.locator('#aiApiKey').fill('«redacted:sk-…»');
+  await page.locator('#aiModel').fill('gpt-4o-mini');
+  await page.locator('#aiSaveButton').click();
+  await expect(page.locator('#aiTestButton')).toBeEnabled();
+
+  await page.locator('#aiTestButton').click();
+  await expect(page.locator('#aiTestResult')).toHaveClass(/is-worked/);
+  await expect(page.locator('#aiTestResult')).toContainText('Working: gpt-4o-mini answered "ready" in 412 ms');
+  expect(errors).toEqual([]);
+});
+
+test('mocked: a failed Test connection is reported word for word', async ({ page }) => {
+  const errors = watchForCrashes(page);
+  await mockApi(page, {
+    'POST /api/ai/ping': (route) => json(route, 502, { error: 'auth (HTTP 401): the AI endpoint refused the key (invalid api key)', usedAi: true })
+  });
+  await openMockedPuzzle(page);
+  await page.locator('#aiToggle').check();
+  await page.locator('#aiBaseUrl').fill('http://localhost:9999/v1');
+  await page.locator('#aiApiKey').fill('«redacted:sk-…»');
+  await page.locator('#aiModel').fill('gpt-4o-mini');
+  await page.locator('#aiSaveButton').click();
+
+  await page.locator('#aiTestButton').click();
+  await expect(page.locator('#aiTestResult')).toHaveClass(/is-try-again/);
+  await expect(page.locator('#aiTestResult')).toContainText('the AI endpoint refused the key');
+  expect(errors).toEqual([]);
+});
+
 test('mocked: a refused hint shows the server message and no exception', async ({ page }) => {
   const errors = watchForCrashes(page);
   await mockApi(page, {
