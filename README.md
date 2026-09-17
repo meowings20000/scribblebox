@@ -10,10 +10,13 @@ external assets, no model, no API key required. The AI features (a judge and a p
 
 ![The star in the tree](docs/shots/s4-solved.png)
 
-**A recorded session:** [`docs/scribblebox-gameplay.mp4`](docs/scribblebox-gameplay.mp4) — 3 minutes 43
-seconds of real play against the live stack (the notebook, adjectives, an improvised word, fire and
-ice, the four-choice hint, all four puzzles, and the AI settings panel). A scene-by-scene plan for
-performing it live is in [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md).
+**A recorded session:** [`docs/scribblebox-demo.mp4`](docs/scribblebox-demo.mp4) — 5 minutes 40 of real
+play against the live stack: the notebook and adjectives, an improvised word, fire and ice, the
+four-choice hint, all four puzzles, and then the optional AI part (a real endpoint, a real key: the
+settings, a connection test, AI four choices, the judge's verdict, and a puzzle the model invented and
+the engine accepted). A scene-by-scene plan for performing it live is in
+[`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md); the scripts that record both parts are
+[`docs/record-demo.js`](docs/record-demo.js) and [`docs/record-ai-segment.js`](docs/record-ai-segment.js).
 
 ---
 
@@ -122,6 +125,12 @@ puzzle that is too big, too far or otherwise unrunnable is rejected with a frien
 than played. If the endpoint answers with prose instead of JSON, refuses the key, times out or is
 unreachable, the UI says exactly that — it never invents a result.
 
+**A refused puzzle gets one chance to be fixed.** The engine knows precisely what was wrong, so its
+complaint is handed straight back to the model, which is asked to correct only that and return the
+whole spec again. It usually works — the generated puzzle in the recorded demo arrived that way — and
+when it does, the response says `"repaired": true` so nobody has to guess. If the second attempt is
+still unplayable, the player is told why instead of being handed a broken puzzle.
+
 **Pointing at a service on this machine.** The AI call is made by the **backend container**, so
 `127.0.0.1` there means the container, not your PC. Use
 `http://host.docker.internal:3000/v1` for a local gateway (for example the `new-api` instance on port
@@ -139,19 +148,19 @@ the tests assert on `g[data-key="ladder"]` instead of pixels.
 ## Tests
 
 ```bash
-cd backend  && go test -race -count=1 ./...      # 136 tests, five packages
+cd backend  && go test -race -count=1 ./...      # 139 tests, five packages
 cd frontend && npm test                          # 252 checks over the page, the JS and the config
-cd frontend && APP_URL=http://localhost:3003 npm run test:e2e   # 18 Playwright specs
+cd frontend && APP_URL=http://localhost:3003 npm run test:e2e   # 20 Playwright specs
 ```
 
 | Package | Tests | What it covers |
 |---|---|---|
 | `backend/lexicon` | 38 | Every authored noun, the modifier system, improvised words, autocomplete |
 | `backend/world` | 59 | Physics rules, all 32 authored solutions, spec validation, the four-choice hint |
-| `backend/ai` | 14 | The OpenAI-compatible client: wire format, honest error kinds, JSON extraction |
-| `backend/api` | 21 | The HTTP contract, CORS, bounds, sandboxing of generated puzzles |
+| `backend/ai` | 16 | The OpenAI-compatible client: wire format, honest error kinds, JSON extraction, the repair round |
+| `backend/api` | 22 | The HTTP contract, CORS, bounds, sandboxing of generated puzzles, the repair round |
 | `backend` (main) | 4 | Ports, timeouts, and the CORS/Compose consistency guard |
-| `frontend` | 252 + 18 | Ids and shape map, the AI panel and key hygiene, live and mocked browser flows |
+| `frontend` | 252 + 20 | Ids and shape map, the AI panel and key hygiene, live and mocked browser flows |
 
 The browser specs run against the real stack (`APP_URL=http://localhost:3003 npm run test:e2e`); the
 mocked ones run anywhere, with `/api/**` intercepted in Playwright.

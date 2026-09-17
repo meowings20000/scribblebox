@@ -66,6 +66,15 @@ Subagents produce plausible work; these are the places where "plausible" was not
    `docker-compose.yml` and fails if the published frontend port is missing from the allowlist.
 8. **A stale footer.** The page still claimed it drew everything "on this page's own canvas" after the
    renderer moved to inline SVG.
+9. **A generated puzzle that miscalculated.** The first real endpoint I pointed at produced a 20x12
+   puzzle with 244 terrain cells instead of 240, and the engine refused it — correctly, but the player
+   just saw a failure. Now a refused spec gets exactly one repair round: the engine's own complaint goes
+   back to the model, which returns a corrected spec. The demo's invented puzzle arrived that way
+   (`"repaired": true`), and the prompt was also tightened to ask for small worlds (12x8) because a
+   smaller terrain array is both faster and far easier for a model to count.
+10. **An AI puzzle wearing a built-in name.** The goal panel took its title from the goal *kind*, so an
+    invented lighthouse puzzle was labelled "Get the star out of the tree". It now uses the puzzle's own
+    title when it has one, which is what the demo shows.
 
 ## What "exactly one is correct" means here
 
@@ -97,10 +106,11 @@ Three rules keep the model on a leash:
 
 ## Numbers
 
-- Go: **136 tests** across five packages, green under `-race`; ~12,400 lines including tests.
-- Frontend: **252 static checks** plus **18 Playwright specs** (2 live against Docker, 16 mocked).
+- Go: **139 tests** across five packages, green under `-race`; ~12,500 lines including tests.
+- Frontend: **252 static checks** plus **20 Playwright specs** (2 live against Docker, 18 mocked).
 - Dictionary: **284 nouns**, **51 modifiers**, 20 shapes, 35 tags.
 - Puzzles: **4**, with **32 authored solutions** between them — every one simulated in a test.
+- Recorded demo: **5 minutes 40** (`docs/scribblebox-demo.mp4`), gameplay plus a real AI segment.
 
 ## Known weak points
 

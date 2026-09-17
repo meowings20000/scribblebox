@@ -275,6 +275,40 @@ func TestJudgeRejectsAnswersItCannotRead(t *testing.T) {
 	}
 }
 
+func TestRepairPuzzleCarriesTheEnginesComplaint(t *testing.T) {
+	fake := newFakeEndpoint(t, http.StatusOK, completion(`{"id":"fixed","goalKind":"star","width":20,"height":10}`))
+
+	generated, err := NewClient().RepairPuzzle(context.Background(), testConfig(fake.URL), RepairRequest{
+		Theme:    "a lighthouse in a storm",
+		GoalKind: "star",
+		Previous: json.RawMessage(`{"id":"broken","terrain":[1,2,3]}`),
+		Problem:  "the terrain has 240 cells but a 20x12 world needs 240",
+	})
+	if err != nil {
+		t.Fatalf("RepairPuzzle = %v", err)
+	}
+	if !strings.Contains(string(generated.Spec), "fixed") {
+		t.Fatalf("spec = %s", generated.Spec)
+	}
+	user := fake.requests[0].Messages[1].Content
+	for _, want := range []string{"a lighthouse in a storm", "star", "the terrain has 240 cells", `{"id":"broken"`} {
+		if !strings.Contains(user, want) {
+			t.Fatalf("the repair prompt is missing %q:\n%s", want, user)
+		}
+	}
+	system := fake.requests[0].Messages[0].Content
+	if !strings.Contains(system, "width*height") {
+		t.Fatalf("the repair prompt should restate the rules: %q", system)
+	}
+}
+
+func TestRepairPuzzleRejectsAnswersItCannotRead(t *testing.T) {
+	fake := newFakeEndpoint(t, http.StatusOK, completion("I am afraid I cannot help with that."))
+	if _, err := NewClient().RepairPuzzle(context.Background(), testConfig(fake.URL), RepairRequest{GoalKind: "star"}); err == nil {
+		t.Fatal("expected an error rather than a broken spec")
+	}
+}
+
 func TestGeneratePuzzleExtractsSpecs(t *testing.T) {
 	spec := `{"id":"ai-space","title":"Space station star","brief":"Reach the star.","hint":"climb something","goalKind":"star","width":20,"height":12,"terrain":[],"entities":[{"phrase":"star","x":5,"y":2}],"playerX":1,"playerY":9}`
 

@@ -24,8 +24,9 @@ const (
 	maxResponseBytes = 256 << 10
 	// DefaultModel is used when the player does not name one.
 	DefaultModel = "gpt-4o-mini"
-	// DefaultTimeout bounds one AI call.
-	DefaultTimeout = 30 * time.Second
+	// DefaultTimeout bounds one AI call. It is generous because a slower model
+	// writing a whole puzzle spec can legitimately take close to a minute.
+	DefaultTimeout = 60 * time.Second
 	// MaxTimeout is the ceiling a player may ask for.
 	MaxTimeout = 60 * time.Second
 	// maxPromptRunes bounds what we send, so a huge world cannot blow up a request.

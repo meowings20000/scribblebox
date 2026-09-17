@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -309,6 +310,53 @@ func TestGeneratePuzzleAcceptsOnlyRefereeableSpecs(t *testing.T) {
 			t.Fatalf("status = %d (%s)", recorder.Code, recorder.Body.String())
 		}
 	})
+}
+
+// A model that miscalculates gets exactly one chance to fix its own puzzle, with
+// the engine's own complaint handed back to it.
+func TestGeneratePuzzleRepairsTheAIsOwnMistake(t *testing.T) {
+	handler := aiHandler(t, "")
+	broken := strings.Replace(specJSON("ai-broken", "star"), `"terrain":[`, `"terrain":[9,9,`, 1)
+	var calls int
+	var secondPrompt string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		body, _ := io.ReadAll(r.Body)
+		content := broken
+		if calls > 1 {
+			secondPrompt = string(body)
+			content = specJSON("ai-fixed", "star")
+		}
+		encoded, _ := json.Marshal(content)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, `{"model":"fake","choices":[{"message":{"content":%s}}]}`, encoded)
+	}))
+	defer server.Close()
+
+	body := fmt.Sprintf(`{"baseUrl":%q,"apiKey":%q,"model":"fake","theme":"a lighthouse in a storm","goalKind":"star"}`, server.URL+"/v1", aiTestKey)
+	recorder := request(t, handler, http.MethodPost, "/api/ai/puzzles", body, nil)
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d (%s)", recorder.Code, recorder.Body.String())
+	}
+	var payload struct {
+		Spec     world.PuzzleSpec `json:"spec"`
+		Notes    string           `json:"notes"`
+		Repaired bool             `json:"repaired"`
+	}
+	decodeBody(t, recorder, &payload)
+	if payload.Spec.ID != "ai-fixed" || !payload.Repaired {
+		t.Fatalf("payload = %+v", payload)
+	}
+	if calls != 2 {
+		t.Fatalf("the engine should have asked for exactly one fix, got %d calls", calls)
+	}
+	// The engine's own complaint must be what the model was shown.
+	if !strings.Contains(secondPrompt, "terrain") {
+		t.Fatalf("the repair request did not carry the engine's complaint: %s", secondPrompt[:200])
+	}
+	if !strings.Contains(payload.Notes, "fix") {
+		t.Fatalf("the notes should say the puzzle was fixed: %q", payload.Notes)
+	}
 }
 
 func TestWorldsFromASpecRejectBadInput(t *testing.T) {

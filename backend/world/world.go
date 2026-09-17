@@ -483,17 +483,27 @@ func (w *World) sandboxLocked() *World {
 func (w *World) goalLocked() Goal {
 	if w.state.judged {
 		return Goal{
-			Title:    goalTitle(w.plan.kind),
+			Title:    w.goalNameLocked(),
 			Met:      true,
 			Progress: judgeProgress(w.state.judge),
 		}
 	}
 	met, progress := w.evaluateGoalLocked()
 	return Goal{
-		Title:    goalTitle(w.plan.kind),
+		Title:    w.goalNameLocked(),
 		Met:      met,
 		Progress: progress,
 	}
+}
+
+// goalNameLocked is what the goal panel calls this puzzle. A puzzle that arrived
+// with its own title keeps it — an AI-invented lighthouse puzzle must not be called
+// "Get the star out of the tree" — and a built-in falls back to its goal kind.
+func (w *World) goalNameLocked() string {
+	if title := strings.TrimSpace(w.puzzle.Title); title != "" {
+		return title
+	}
+	return goalTitle(w.plan.kind)
 }
 
 // checkGoalLocked runs the goal check after a mutation and latches a win. Once
@@ -505,7 +515,7 @@ func (w *World) checkGoalLocked() {
 		w.state.goalMet = true
 		if !w.state.solved {
 			w.state.solved = true
-			w.sayLocked("that is the puzzle solved: " + goalTitle(w.plan.kind))
+			w.sayLocked("that is the puzzle solved: " + w.goalNameLocked())
 		}
 		return
 	}

@@ -144,37 +144,58 @@ func (h *Handler) generatePuzzle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var spec world.PuzzleSpec
-	if err := json.Unmarshal(generated.Spec, &spec); err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]any{
-			"error":  "the AI's puzzle could not be read as a puzzle: " + err.Error(),
-			"usedAi": true, "model": config.Model,
+	spec, problem := validatePuzzleSpec(generated.Spec, goalKind)
+	repaired := false
+	if problem != "" {
+		// The engine knows exactly what is wrong, so hand its complaint back to the
+		// model once and let it fix its own puzzle instead of failing the player.
+		fixed, repairErr := h.ai.RepairPuzzle(r.Context(), config, ai.RepairRequest{
+			Theme:    theme,
+			GoalKind: goalKind,
+			Previous: generated.Spec,
+			Problem:  problem,
 		})
-		return
+		if repairErr == nil {
+			if candidate, second := validatePuzzleSpec(fixed.Spec, goalKind); second == "" {
+				spec, generated, problem, repaired = candidate, fixed, "", true
+			} else {
+				problem = problem + "; asked to fix it, the AI then sent one that " + second
+			}
+		}
 	}
-	if spec.GoalKind != goalKind {
+	if problem != "" {
 		writeJSON(w, http.StatusBadGateway, map[string]any{
-			"error":  fmt.Sprintf("the AI asked for goal kind %q but sent a %q puzzle", goalKind, spec.GoalKind),
-			"usedAi": true, "model": config.Model,
-		})
-		return
-	}
-	// The world package is the referee: if it will not build the puzzle, the
-	// player never sees a broken one.
-	if _, err := world.NewFromSpec(spec); err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]any{
-			"error":  "the AI's puzzle was rejected: " + err.Error(),
+			"error":  "the AI's puzzle was rejected: " + problem,
 			"usedAi": true, "model": config.Model,
 		})
 		return
 	}
 
 	writeJSON(w, http.StatusCreated, map[string]any{
-		"spec":   spec,
-		"notes":  generated.Notes,
-		"usedAi": true,
-		"model":  generated.Model,
+		"spec":     spec,
+		"notes":    generated.Notes,
+		"repaired": repaired,
+		"usedAi":   true,
+		"model":    generated.Model,
 	})
+}
+
+// validatePuzzleSpec checks a generated spec the same way the world package will,
+// and returns a friendly reason when the puzzle cannot be played.
+func validatePuzzleSpec(raw json.RawMessage, goalKind string) (world.PuzzleSpec, string) {
+	var spec world.PuzzleSpec
+	if err := json.Unmarshal(raw, &spec); err != nil {
+		return spec, "it could not be read as a puzzle: " + err.Error()
+	}
+	if spec.GoalKind != goalKind {
+		return spec, fmt.Sprintf("it asked for goal kind %q but sent a %q puzzle", goalKind, spec.GoalKind)
+	}
+	// The world package is the referee: if it will not build the puzzle, the player
+	// never sees a broken one.
+	if _, err := world.NewFromSpec(spec); err != nil {
+		return spec, err.Error()
+	}
+	return spec, ""
 }
 
 // ping proves the player's settings work before they rely on them. It is the one

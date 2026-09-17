@@ -39,16 +39,20 @@ Goal kinds the engine can referee — you MUST use the requested one:
 
 Rules for a good puzzle — this game is deliberately EASY, aimed at a primary-school pupil who should
 solve it on the first or second try:
-- Small and readable: width between 12 and 40, height between 8 and 20, at most 25 entities.
+- Keep it TINY: exactly 12 wide by 8 tall unless the theme really needs more (the engine accepts 12x8 up
+  to 40x20). A tiny world means a short "terrain" array, which you can write accurately and quickly.
+- The terrain array must have EXACTLY width*height numbers, row by row, top row first: mostly 0 with 1
+  for the ground row at the bottom (and 2 where you want water).
+- At most 6 entities: the goal object, whatever scenery the theme needs, and the player.
 - Short distances: the player starts within 12 cells of whatever must be reached. Water is at most 4 cells wide.
 - The OBVIOUS object must work in one spawn: a ladder/rope/box for a star, a bridge/boat/plank (or freezing the water) for a crossing, a match/torch/lighter for candles, a key or crowbar for a chest.
 - Never require two objects in a precise order, never require a precision jump, nothing is deadly and nothing is timed.
 - Still allow MANY ways to win, all of them obvious; never bake in a single intended answer and never include an answer key.
-- Put ground under everything the player stands on. The player start (playerX, playerY) must be an empty cell above ground, within 12 cells of the goal object. Entities must be inside the grid and not inside solid terrain.
-- The engine rejects puzzles that break these limits, so keep them: a puzzle that is too hard, too big or too far will be refused.
+- Put ground under everything the player stands on. The player start (playerX, playerY) must be an empty cell above ground, within 12 cells of the goal object.
+- At most 6 entities. The engine rejects puzzles that break these limits, so keep them.
 
 Answer with STRICT JSON and nothing else, exactly this shape:
-{"id":"a-short-slug","title":"short title","brief":"what the player must do, one line","hint":"a nudge that does not give the answer away","goalKind":"the requested kind","width":28,"height":16,"terrain":[...],"entities":[{"phrase":"ladder","x":3,"y":4}],"playerX":2,"playerY":9}`
+{"id":"a-short-slug","title":"short title","brief":"what the player must do, one line","hint":"a nudge that does not give the answer away","goalKind":"the requested kind","width":12,"height":8,"terrain":[...],"entities":[{"phrase":"ladder","x":3,"y":4}],"playerX":2,"playerY":6}`
 
 // GeneratePuzzle asks the model for a new puzzle spec.
 func (c *Client) GeneratePuzzle(ctx context.Context, cfg Config, request PuzzleRequest) (GeneratedPuzzle, error) {
@@ -76,6 +80,50 @@ func (c *Client) GeneratePuzzle(ctx context.Context, cfg Config, request PuzzleR
 		return GeneratedPuzzle{}, newError("protocol", 0, "the AI's puzzle was not valid JSON")
 	}
 	return GeneratedPuzzle{Spec: json.RawMessage(raw), Notes: "the AI sent the puzzle spec directly", Model: cfg.Model}, nil
+}
+
+// RepairRequest asks the model to fix a spec the engine refused. The engine is the
+// one that knows what is wrong, so its exact reason is handed back.
+type RepairRequest struct {
+	Theme    string
+	GoalKind string
+	Previous json.RawMessage
+	Problem  string
+}
+
+const repairSystemPrompt = `You fix puzzle specs for "Scribblebox", a small Scribblenauts-style game. A
+puzzle engine rejected the spec you are given and explained exactly why. Correct only what the engine
+complained about, keep everything else, and return the whole corrected spec.
+
+Rules the engine checks:
+- width 12..40, height 8..20, and the "terrain" array must have EXACTLY width*height entries.
+- terrain codes: 0 air, 1 ground, 2 water, 3 tree trunk, 4 wall, 5 ash.
+- the four goal kinds and what they need: "star" needs a collectible "star" entity; "candles" needs
+  "candle" entities; "chest" needs a "chest" entity; "cross" needs water with a bank on each side.
+- the player start must be inside the grid, not inside solid terrain, and within 12 cells of whatever
+  must be reached; water is at most 4 cells wide; at most 25 entities.
+
+Answer with STRICT JSON and nothing else: the corrected spec object.`
+
+// RepairPuzzle sends the engine's own complaint back to the model.
+func (c *Client) RepairPuzzle(ctx context.Context, cfg Config, request RepairRequest) (GeneratedPuzzle, error) {
+	var builder strings.Builder
+	fmt.Fprintf(&builder, "Goal kind: %s\nTheme: %s\n", strings.TrimSpace(request.GoalKind), strings.TrimSpace(request.Theme))
+	fmt.Fprintf(&builder, "The engine rejected this spec:\n%s\n", string(request.Previous))
+	fmt.Fprintf(&builder, "The engine said: %s\n\nReturn the corrected spec as strict JSON only.", request.Problem)
+
+	answer, err := c.Chat(ctx, cfg, repairSystemPrompt, builder.String(), 0.3)
+	if err != nil {
+		return GeneratedPuzzle{}, err
+	}
+	raw, err := extractJSON(answer)
+	if err != nil {
+		return GeneratedPuzzle{}, newError("protocol", 0, "the AI's repair was not JSON we could read: %v", err)
+	}
+	if !json.Valid([]byte(raw)) {
+		return GeneratedPuzzle{}, newError("protocol", 0, "the AI's repaired puzzle was not valid JSON")
+	}
+	return GeneratedPuzzle{Spec: json.RawMessage(raw), Notes: "the engine asked for a fix and the AI sent a corrected puzzle", Model: cfg.Model}, nil
 }
 
 func puzzleUserPrompt(request PuzzleRequest) string {

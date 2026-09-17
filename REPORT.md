@@ -95,6 +95,8 @@ backend/ai       OpenAI 相容客戶端、裁判、生題、提示建議
 
 **失敗一律誠實**：401/403 → 「the AI endpoint refused the key (401)」；連不上 → 「could not reach」；逾時 → 504；回傳不是 JSON → 502；並有測試斷言 key 不會出現在任何回應或錯誤訊息中。沒有填設定時，AI 按鈕停用並說明原因，遊戲其他部分完全不受影響。
 
+**被拒絕的題目會得到一次修正機會**：引擎知道錯在哪，所以會把自己的錯誤訊息直接交回模型，要求它只修那個問題並重送整份 spec。實測有效——錄影裡 AI 生成的那道題就是這樣來的（回傳 `"repaired": true`）。提示詞也同步要求「世界盡量小（12×8）」，因為地形陣列越短，模型越容易算對、也越快回來。若第二次仍不可玩，會把原因告訴玩家，而不是給一道壞題。
+
 ---
 
 ## 6. 美術與難度
@@ -118,7 +120,9 @@ backend/ai       OpenAI 相容客戶端、裁判、生題、提示建議
 5. **失效的選項還留在畫面上可按**：引擎無法背書時，現在會清掉舊選項並保留原因。
 6. **四個選項縮圖長得一樣**：`/api/words` 現在回傳實際造型與顏色，選項各自畫成它將成為的圖示。
 7. **我自己改 port 造成 CORS 擋掉自己**：前端移到 3003 但後端白名單還寫 3001，瀏覽器的同源請求被 403，遊戲整頁載不出來；修好並加上守門測試 `TestDefaultsAllowThePublishedFrontendPort`（讀 `docker-compose.yml` 比對白名單）。
-8. **頁腳還說「canvas」**：渲染器早已改成 SVG，文案更新。
+8. **頁腳還說 canvas**：渲染器早已改成 SVG。
+9. **AI 生成的題目算錯格子數**：接上真實端點後，模型給的 20×12 地形寫了 244 格（應為 240），引擎正確拒絕，但玩家只看到失敗。現在被拒絕的 spec 會得到一次修正機會——引擎把自己的錯誤訊息交回模型讓它自己修；錄影裡 AI 造的題就是這樣通過的（`"repaired": true`）。提示詞同時改成要求小世界（12×8），因為地形越短模型越容易算對。
+10. **AI 的題目掛著內建題的名字**：目標面板原本用「目標類型」取名，於是 AI 造的燈塔題顯示成「Get the star out of the tree」。現在題目有自己的名字就用它——這也是錄影中看到的行為。
 
 ---
 
@@ -126,12 +130,13 @@ backend/ai       OpenAI 相容客戶端、裁判、生題、提示建議
 
 | 檢查 | 結果 |
 |---|---|
-| `go test -race -count=1 ./...` | **136 個測試全過**：lexicon 38、world 59、ai 14、api 21、main 4 |
+| `go test -race -count=1 ./...` | **139 個測試全過**：lexicon 38、world 59、ai 16、api 22、main 4 |
 | `npm test` | **252 項**前端與部署設定檢查通過 |
-| `npm run test:e2e` | **18 個 Playwright 全過**，其中 2 個對真實 Docker 執行 |
+| `npm run test:e2e` | **20 個 Playwright 全過**，其中 2 個對真實 Docker 執行 |
 | 真棧 smoke（純 HTTP 走完四題） | **53 項通過**；四題都以最直覺的物件解開（ladder／bridge／match／key） |
 | 瀏覽器實測 | 四選一提示可在畫面上解題成功、回饋文字即時且誠實、零頁面錯誤 |
-| 規模 | Go 約 12,400 行（含測試）、`app.js` 2,103 行、字典 284 名詞／51 修飾詞／20 造型／35 種性質、4 道題共 32 種已驗證解法 |
+| 規模 | Go 約 12,500 行（含測試）、`app.js` 2,103 行、字典 284 名詞／51 修飾詞／20 造型／35 種性質、4 道題共 32 種已驗證解法 |
+| 錄影 | `docs/scribblebox-demo.mp4`：**5 分 40 秒**真實遊玩 + 真實 AI 段（設定、測試連線、AI 四選一、判題、AI 生成並由引擎接受的題目） |
 
 值得單獨指出的測試：`TestHintOffersFourVerifiedOptionsForEveryPuzzle`（逐題把四個選項真的玩一遍，要求恰好一個贏）、`TestTheFourChoiceHintIsVerifiedEndToEnd`（改走 HTTP 再驗一次）、`TestChoosingAHintOptionIsVerifiedWhenItIsPressed`（在提供與按下之間刻意改變世界——這正是過去會失效的情境）、`TestHintMovesToANearbySpotWhenTheUsualOneIsBlocked`、`TestWordsReportsTheShapeOfAWordItKnows`、`TestDefaultsAllowThePublishedFrontendPort`。
 
