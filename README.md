@@ -10,7 +10,11 @@ external assets, no model, no API key required. The AI features (a judge and a p
 
 ![The star in the tree](docs/shots/s4-solved.png)
 
-**A recorded session:** [`docs/scribblebox-demo.mp4`](docs/scribblebox-demo.mp4) — 5 minutes 40 of real
+**Play it:** <https://scribblebox.meowmeow12245ouo.dpdns.org> — a live copy behind a Cloudflare tunnel
+(`scribblebox-config.yml` in `~/.cloudflared`, tunnel `scribblebox`). The page and the API are served
+from one hostname, so there is nothing to configure and no key is needed for the game itself.
+
+**A recorded session:** [`docs/scribblebox-demo.mp4`](docs/scribblebox-demo.mp4) — 4 minutes 40 of real
 play against the live stack: the notebook and adjectives, an improvised word, fire and ice, the
 four-choice hint, all four puzzles, and then the optional AI part (a real endpoint, a real key: the
 settings, a connection test, AI four choices, the judge's verdict, and a puzzle the model invented and

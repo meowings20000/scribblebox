@@ -110,7 +110,7 @@ Three rules keep the model on a leash:
 - Frontend: **252 static checks** plus **20 Playwright specs** (2 live against Docker, 18 mocked).
 - Dictionary: **284 nouns**, **51 modifiers**, 20 shapes, 35 tags.
 - Puzzles: **4**, with **32 authored solutions** between them — every one simulated in a test.
-- Recorded demo: **5 minutes 40** (`docs/scribblebox-demo.mp4`), gameplay plus a real AI segment.
+- Recorded demo: **4 minutes 40** (`docs/scribblebox-demo.mp4`), gameplay plus a real AI segment.
 
 ## Known weak points
 

@@ -136,7 +136,8 @@ backend/ai       OpenAI 相容客戶端、裁判、生題、提示建議
 | 真棧 smoke（純 HTTP 走完四題） | **53 項通過**；四題都以最直覺的物件解開（ladder／bridge／match／key） |
 | 瀏覽器實測 | 四選一提示可在畫面上解題成功、回饋文字即時且誠實、零頁面錯誤 |
 | 規模 | Go 約 12,500 行（含測試）、`app.js` 2,103 行、字典 284 名詞／51 修飾詞／20 造型／35 種性質、4 道題共 32 種已驗證解法 |
-| 錄影 | `docs/scribblebox-demo.mp4`：**5 分 40 秒**真實遊玩 + 真實 AI 段（設定、測試連線、AI 四選一、判題、AI 生成並由引擎接受的題目） |
+| 錄影 | `docs/scribblebox-demo.mp4`：**4 分 40 秒**真實遊玩 + 真實 AI 段（設定、測試連線、AI 四選一、判題、AI 生成並由引擎接受的題目） |
+| 公開網址 | <https://scribblebox.meowmeow12245ouo.dpdns.org>（cloudflared tunnel `scribblebox` → 本機 3003；同一網域同時服務頁面與 API，53 項 smoke 對公開網址全過） |
 
 值得單獨指出的測試：`TestHintOffersFourVerifiedOptionsForEveryPuzzle`（逐題把四個選項真的玩一遍，要求恰好一個贏）、`TestTheFourChoiceHintIsVerifiedEndToEnd`（改走 HTTP 再驗一次）、`TestChoosingAHintOptionIsVerifiedWhenItIsPressed`（在提供與按下之間刻意改變世界——這正是過去會失效的情境）、`TestHintMovesToANearbySpotWhenTheUsualOneIsBlocked`、`TestWordsReportsTheShapeOfAWordItKnows`、`TestDefaultsAllowThePublishedFrontendPort`。
 
