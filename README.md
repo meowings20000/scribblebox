@@ -50,6 +50,25 @@ cd backend && go run .        # service on :8080
 cd frontend && python -m http.server 3003   # then open http://localhost:3003
 ```
 
+### Environment variables
+
+**None are required.** The game, the dictionary and the four-choice hint run with no configuration, no
+accounts and no network access beyond the page itself.
+
+| Variable | Needed? | What it does |
+|---|---|---|
+| `ALLOWED_ORIGINS` | optional | Comma-separated browser origins the backend accepts. Defaults to the published frontend ports; only relevant if you serve the page from somewhere else. |
+| `PORT` / `ADDRESS` | optional | Where the backend listens. Both containers are published to loopback by `docker-compose.yml`. |
+| *(an AI key)* | **not a server variable** | The optional AI panel takes a base URL, a key and a model **typed into the page by whoever uses it**. The key is kept in that browser's `localStorage` and sent only on the request it belongs to; the server never stores, logs or returns it. There is deliberately no `OPENAI_API_KEY`-style variable for this app. |
+
+### How to demo the main path
+
+`docs/DEMO_SCRIPT.md` is a scene-by-scene walkthrough (what to type, what to point at, what the
+audience should notice) that runs about four minutes; `docs/scribblebox-demo.mp4` is that same session
+recorded, and the live copy is at <https://scribblebox.meowmeow12245ouo.dpdns.org>. The shortest honest
+demo is one puzzle: open the page, type `ladder`, press `Write`, walk to the star. Then press
+**Give me four choices** to show that the help is verified rather than guessed.
+
 ## The game
 
 **Four puzzles, all deliberately easy** (aimed at a primary-school pupil, solvable on the first or
